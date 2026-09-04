@@ -1,11 +1,9 @@
 module Control.Query.Types
 
-import Data.Linear.List
 import Derive.Prelude
 import public Control.Monad.Elin
 import public Data.DArray
 import public Data.Linear.Ref1
-import public Data.SortedMap
 
 %default total
 %language ElabReflection
