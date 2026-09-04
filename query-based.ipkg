@@ -4,7 +4,9 @@ authors    = "Stefan Höck"
 brief      = "Experiments with query-based architectures"
 depends    = base    >= 0.6.0
            , darray
+           , elin
 
 modules    = Control.Query
+           , Control.Query.Types
 
 sourcedir  = "src"
