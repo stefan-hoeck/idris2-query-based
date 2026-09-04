@@ -1,0 +1,10 @@
+package query-based
+version    = 0.0.1
+authors    = "Stefan Höck"
+brief      = "Experiments with query-based architectures"
+depends    = base    >= 0.6.0
+           , darray
+
+modules    = Control.Query
+
+sourcedir  = "src"
