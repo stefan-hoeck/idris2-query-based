@@ -96,8 +96,8 @@ parameters (0 c     : QTypes)
   verifyDeps v (QK q arg :: ks) t =
     case lkp store q arg t of
       Nothing # t => False # t
-      Just qs # t => case qs.verified == curr && qs.changed >= v of
-        True  => False # t
+      Just qs # t => case qs.verified == curr of
+        True  => (qs.changed <= v) # t
         False => case verify q arg qs t of
           True  # t => verifyDeps v ks t
           False # t => False # t
