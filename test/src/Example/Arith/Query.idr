@@ -50,9 +50,9 @@ export %hint
 testQTC : QIface TestC
 testQTC =
   QI {
-    eqArg   = darrayAuto _ _
-  , ordArg  = darrayAuto _ _
-  , showArg = darrayAuto _ _
+    eqArg          = darrayAuto _ _
+  , ordArg         = darrayAuto _ _
+  , interpolateArg = darrayAuto _ _
   }
 
 %inline
@@ -159,13 +159,14 @@ record TestEnv (s : Type) where
   moduleContent : Module -> ByteString -> F1' s
   testEngine    : FRunner s TestC
 
-fc : Engine s TestC -> Ref s Modules -> Module -> ByteString -> F1' s
+fc : DebugFlag => Engine s TestC -> Ref s Modules -> Module -> ByteString -> F1' s
 fc e fs f bs t =
  let _ # t := mod1 fs (insert f bs) t
+     _ # t := debugIf1 "module updated: \{f}" t
   in e.notify Content f t
 
 export covering
-testEngine : F1 s (TestEnv s)
+testEngine : DebugFlag => F1 s (TestEnv s)
 testEngine t =
  let files # t := ref1 {a = Modules} empty t
      engi  # t := engine (inner files) t

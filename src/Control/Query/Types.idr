@@ -51,6 +51,9 @@ export %inline
 inc : Version -> Version
 inc (V n) = V (S n)
 
+export %inline
+Interpolation Version where interpolate = show . version
+
 --------------------------------------------------------------------------------
 -- Query Types
 --------------------------------------------------------------------------------
@@ -150,11 +153,43 @@ qrun ref q arg t = let f # t := read1 ref t in f q arg t
 public export
 record QIface (c : QTypes) where
   constructor QI
-  {nqueries  : Bits32}
-  eqArg      : DArray (Query c) (Eq . QArg c)
-  ordArg     : DArray (Query c) (Ord . QArg c)
-  showArg    : DArray (Query c) (Show . QArg c)
-  {auto qen  : Enum (Query c) nqueries}
-  {auto qeq  : Eq (Query c)}
-  {auto qord : Ord (Query c)}
-  {auto qshw : Show (Query c)}
+  {nqueries      : Bits32}
+  eqArg          : DArray (Query c) (Eq . QArg c)
+  ordArg         : DArray (Query c) (Ord . QArg c)
+  interpolateArg : DArray (Query c) (Interpolation . QArg c)
+  {auto qen      : Enum (Query c) nqueries}
+  {auto qeq      : Eq (Query c)}
+  {auto qord     : Ord (Query c)}
+  {auto qshw     : Show (Query c)}
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+parameters {auto qi : QIface c}
+
+  export
+  sameArg : {q : _} -> QArg c q -> QArg c q -> Bool
+  sameArg x y =
+   let _ := qi.qen
+       _ := qi.eqArg `at` q
+    in x == y
+
+  export
+  showArg : {q : _} -> QArg c q -> String
+  showArg x =
+   let _ := qi.qen
+       _ := qi.interpolateArg `at` q
+    in interpolate x
+
+  export
+  showQuery : Query c -> String
+  showQuery q = let _ := qi.qshw in show q
+
+  export
+  logArg : (q : Query c) -> QArg c q -> String
+  logArg q arg = "\{showQuery q} @ \{Types.showArg arg}"
+
+  export
+  logDeps : SnocList (QKey c) -> String
+  logDeps = fastConcat . intersperse "," . map (\(QK q a) => logArg q a) . (<>> [])

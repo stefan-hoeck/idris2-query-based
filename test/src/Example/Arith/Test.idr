@@ -20,6 +20,13 @@ factorials =
 factorials2 : ByteString
 factorials2 = factorials <+> "fact6 = 6 * fact5;"
 
+bools : ByteString
+bools =
+  """
+  tr = true;
+  fl = false;
+  """
+
 examples : ByteString
 examples =
   """
@@ -30,6 +37,10 @@ examples =
   test2 = ~test1;
 
   test3 = fact6 * fact5;
+
+  import Bools
+
+  test4 = tr && fl || ~test1;
   """
 
 logVal : F1 World (QResult TestC Eval) -> IO1 ()
@@ -39,7 +50,7 @@ logVal f t =
     Right p # t => debug1 (interpolate p) t
 
 covering
-example1 : IO1 ()
+example1 : DebugFlag => IO1 ()
 example1 = T1.do
   TE fc run <- testEngine
   fc "Factorials" factorials
@@ -49,10 +60,13 @@ example1 = T1.do
   logVal (run Eval $ Q "Examples" "test1")
   logVal (run Eval $ Q "Examples" "test2")
   logVal (run Eval $ Q "Examples" "test3")
+  logVal (run Eval $ Q "Examples" "test4")
   fc "Factorials" factorials2
+  fc "Bools" bools
   logVal (run Eval $ Q "Factorials" "fact6")
   logVal (run Eval $ Q "Examples" "test3")
+  logVal (run Eval $ Q "Examples" "test4")
 
 export covering
 runArith : IO ()
-runArith = runIO example1
+runArith = runIO (example1 @{NoDebugging})
