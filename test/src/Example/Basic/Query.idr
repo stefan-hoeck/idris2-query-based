@@ -25,6 +25,8 @@ TestArg Lines    = String
 TestArg LineMap  = String
 TestArg FirstPos = (String,String)
 
+Interpolation (String,String) where interpolate (x,y) = "\{x}.\{y}"
+
 public export
 0 TestRes : TestQ -> Type
 TestRes Content  = ByteString
@@ -44,9 +46,9 @@ export %hint
 testQTC : QIface TestC
 testQTC =
   QI {
-    eqArg   = darrayAuto _ _
-  , ordArg  = darrayAuto _ _
-  , showArg = darrayAuto _ _
+    eqArg          = darrayAuto _ _
+  , ordArg         = darrayAuto _ _
+  , interpolateArg = darrayAuto _ _
   }
 
 %inline
@@ -81,7 +83,7 @@ fc e fs f bs t =
   in e.notify Content f t
 
 export covering
-testEngine : F1 s (TestEnv s)
+testEngine : DebugFlag => F1 s (TestEnv s)
 testEngine t =
  let files # t := ref1 {a = Files} empty t
      engi  # t := engine (inner files) t

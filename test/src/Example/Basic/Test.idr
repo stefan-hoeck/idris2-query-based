@@ -8,7 +8,7 @@ import System
 %default total
 
 covering
-example1 : Nat -> IO1 ()
+example1 : DebugFlag => Nat -> IO1 ()
 example1 n = T1.do
   TE fc run <- testEngine
   fc "Source1" "hello\nworld\n\nthis is\na test!\n\n"
@@ -19,5 +19,6 @@ example1 n = T1.do
 export covering
 runBasic : IO ()
 runBasic = Prelude.do
+  let df := NoDebugging
   [_,n] <- getArgs | _ => runIO (example1 100)
   runIO (example1 $ cast n)
