@@ -80,38 +80,38 @@ BOp = ByteBounded Op
 
 public export
 data Syntax : Type where
-  SDef  : String -> Syntax
+  SDef  : ByteBounds -> String -> Syntax
   SSeq  : Skot Syntax BOp -> Syntax -> Syntax
-  SBool : Bool -> Syntax
-  SNat  : Nat -> Syntax
+  SBool : ByteBounds -> Bool -> Syntax
+  SNat  : ByteBounds -> Nat -> Syntax
 
 %runElab derive "Syntax" [Show,Eq]
 
 export %inline
 seq : Skot Syntax BOp -> Syntax -> Syntax
-seq [<] s = s
-seq sp  s = SSeq sp s
+seq [<] x = x
+seq sp  x = SSeq sp x
 
 public export
 data Decl : Type where
-  Import : String -> Decl
-  Defn   : String -> Syntax -> Decl
+  Import : ByteBounded Module -> Decl
+  Defn   : ByteBounded String -> Syntax -> Decl
 
 %runElab derive "Decl" [Show,Eq]
 
 export
 isDefn : String -> Decl -> Bool
-isDefn n (Defn x _) = n == x
+isDefn n (Defn x _) = n == x.val
 isDefn n _          = False
 
 export
 toImport : Decl -> Maybe Module
-toImport (Import n) = Just (M n)
+toImport (Import n) = Just n.val
 toImport _          = Nothing
 
 export
 toQualified : Module -> Decl -> Maybe (String, Qualified)
-toQualified m (Defn n _) = Just (n, Q m n)
+toQualified m (Defn n _) = Just (n.val, Q m n.val)
 toQualified _ _          = Nothing
 
 --------------------------------------------------------------------------------
@@ -152,24 +152,13 @@ Cast (ShuntingErr Op) Error where cast = EShunt
 
 public export
 data Term : Type where
-  TI    : Term -> Op -> Term -> Term
-  TP    : Op -> Term -> Term
-  TDef  : String -> Term
-  TBool : Bool -> Term
-  TNat  : Nat -> Term
+  TI    : ByteBounds -> Term -> ByteBounded Op -> Term -> Term
+  TP    : ByteBounds -> ByteBounded Op -> Term -> Term
+  TDef  : ByteBounded String -> Term
+  TBool : ByteBounds -> Bool -> Term
+  TNat  : ByteBounds -> Nat -> Term
 
 %runElab derive "Term" [Show,Eq]
-
-export
-Num Term where
-  fromInteger = TNat . cast
-  x + y = TI x PLUS y
-  x * y = TI x TIMES y
-
-export
-Neg Term where
-  negate = TP NEG
-  x - y  = TI x MINUS y
 
 public export
 0 TErr : Type
@@ -188,95 +177,95 @@ skot is (si:<i) =
 
 export
 desugar : Syntax -> Either TErr Term
-desugar (SSeq sk s) = Prelude.do
-  skt <- skot [] sk
-  t   <- desugar s
-  mapFst toErr $ shuntingYard (\x,y => TI x y.val) (\x => TP x.val) skt t
-desugar (SDef s)    = Right (TDef s)
-desugar (SBool b)   = Right (TBool b)
-desugar (SNat n)    = Right (TNat n)
+-- desugar (SSeq sk s) = Prelude.do
+--   skt <- skot [] sk
+--   t   <- desugar s
+--   mapFst toErr $ shuntingYard (\x,y => TI x y.val) (\x => TP x.val) skt t
+-- desugar (SDef s)    = Right (TDef s)
+-- desugar (SBool b)   = Right (TBool b)
+-- desugar (SNat n)    = Right (TNat n)
 
 shuntTok (TPre o n) = Right (TPre o n)
 shuntTok (TInf t o n a) =
  let Right s := desugar t | Left x => Left x
   in Right (TInf s o n a)
-
---------------------------------------------------------------------------------
--- Type Theory
---------------------------------------------------------------------------------
-
-public export
-0 IType : Tpe -> Type
-IType B = Bool
-IType I = Integer
-
-public export
-data TTOp : List Tpe -> Tpe -> Type where
-  T_PLUS  : TTOp [I,I] I
-  T_MINUS : TTOp [I,I] I
-  T_TIMES : TTOp [I,I] I
-  T_EQ    : TTOp [t,t] B
-  T_LT    : TTOp [t,t] B
-  T_LTE   : TTOp [t,t] B
-  T_GT    : TTOp [t,t] B
-  T_GTE   : TTOp [t,t] B
-  T_AND   : TTOp [B,B] B
-  T_OR    : TTOp [B,B] B
-  T_NEG   : TTOp [I]   I
-  T_NOT   : TTOp [B]   B
-
-%runElab deriveIndexed "TTOp" [Show]
-
-public export
-data TT : Tpe -> Type where
-  TTFun  : {r : _} -> TTOp ts r -> All TT ts -> TT r
-  TTBool : Bool -> TT B
-  TTInt  : Integer -> TT I
-
-export
-fromValue : {t : _} -> IType t -> TT t
-fromValue {t = B} v = TTBool v
-fromValue {t = I} v = TTInt v
-
-export
-ttpe : TT t -> Singleton t
-ttpe (TTFun _ _) = %search
-ttpe (TTBool _)  = %search
-ttpe (TTInt _)   = %search
-
-export
-Interpolation (t ** IType t) where
-  interpolate (B ** v) = "Bool: \{show v}"
-  interpolate (I ** v) = "Integer: \{show v}"
-
---------------------------------------------------------------------------------
--- Evaluation
---------------------------------------------------------------------------------
-
-export
-ord : TT t -> Ord (IType t)
-ord x =
-  case ttpe x of
-    Val B => %search
-    Val I => %search
-
-evalOp : TTOp ts r -> All TT ts -> IType r
-
-export
-eval : TT t -> IType t
-eval (TTFun x y) = evalOp x y
-eval (TTBool x)  = x
-eval (TTInt i)   = i
-
-evalOp T_PLUS  [x,y] = eval x + eval y
-evalOp T_MINUS [x,y] = eval x - eval y
-evalOp T_TIMES [x,y] = eval x * eval y
-evalOp T_EQ    [x,y] = let _ := ord x in eval x == eval y
-evalOp T_LT    [x,y] = let _ := ord x in eval x <  eval y
-evalOp T_LTE   [x,y] = let _ := ord x in eval x <= eval y
-evalOp T_GT    [x,y] = let _ := ord x in eval x >  eval y
-evalOp T_GTE   [x,y] = let _ := ord x in eval x >= eval y
-evalOp T_AND   [x,y] = let _ := ord x in eval x && eval y
-evalOp T_OR    [x,y] = let _ := ord x in eval x || eval y
-evalOp T_NEG   [x]   = negate (eval x)
-evalOp T_NOT   [x]   = not (eval x)
+--
+-- --------------------------------------------------------------------------------
+-- -- Type Theory
+-- --------------------------------------------------------------------------------
+--
+-- public export
+-- 0 IType : Tpe -> Type
+-- IType B = Bool
+-- IType I = Integer
+--
+-- public export
+-- data TTOp : List Tpe -> Tpe -> Type where
+--   T_PLUS  : TTOp [I,I] I
+--   T_MINUS : TTOp [I,I] I
+--   T_TIMES : TTOp [I,I] I
+--   T_EQ    : TTOp [t,t] B
+--   T_LT    : TTOp [t,t] B
+--   T_LTE   : TTOp [t,t] B
+--   T_GT    : TTOp [t,t] B
+--   T_GTE   : TTOp [t,t] B
+--   T_AND   : TTOp [B,B] B
+--   T_OR    : TTOp [B,B] B
+--   T_NEG   : TTOp [I]   I
+--   T_NOT   : TTOp [B]   B
+--
+-- %runElab deriveIndexed "TTOp" [Show]
+--
+-- public export
+-- data TT : Tpe -> Type where
+--   TTFun  : {r : _} -> TTOp ts r -> All TT ts -> TT r
+--   TTBool : Bool -> TT B
+--   TTInt  : Integer -> TT I
+--
+-- export
+-- fromValue : {t : _} -> IType t -> TT t
+-- fromValue {t = B} v = TTBool v
+-- fromValue {t = I} v = TTInt v
+--
+-- export
+-- ttpe : TT t -> Singleton t
+-- ttpe (TTFun _ _) = %search
+-- ttpe (TTBool _)  = %search
+-- ttpe (TTInt _)   = %search
+--
+-- export
+-- Interpolation (t ** IType t) where
+--   interpolate (B ** v) = "Bool: \{show v}"
+--   interpolate (I ** v) = "Integer: \{show v}"
+--
+-- --------------------------------------------------------------------------------
+-- -- Evaluation
+-- --------------------------------------------------------------------------------
+--
+-- export
+-- ord : TT t -> Ord (IType t)
+-- ord x =
+--   case ttpe x of
+--     Val B => %search
+--     Val I => %search
+--
+-- evalOp : TTOp ts r -> All TT ts -> IType r
+--
+-- export
+-- eval : TT t -> IType t
+-- eval (TTFun x y) = evalOp x y
+-- eval (TTBool x)  = x
+-- eval (TTInt i)   = i
+--
+-- evalOp T_PLUS  [x,y] = eval x + eval y
+-- evalOp T_MINUS [x,y] = eval x - eval y
+-- evalOp T_TIMES [x,y] = eval x * eval y
+-- evalOp T_EQ    [x,y] = let _ := ord x in eval x == eval y
+-- evalOp T_LT    [x,y] = let _ := ord x in eval x <  eval y
+-- evalOp T_LTE   [x,y] = let _ := ord x in eval x <= eval y
+-- evalOp T_GT    [x,y] = let _ := ord x in eval x >  eval y
+-- evalOp T_GTE   [x,y] = let _ := ord x in eval x >= eval y
+-- evalOp T_AND   [x,y] = let _ := ord x in eval x && eval y
+-- evalOp T_OR    [x,y] = let _ := ord x in eval x || eval y
+-- evalOp T_NEG   [x]   = negate (eval x)
+-- evalOp T_NOT   [x]   = not (eval x)
