@@ -89,6 +89,12 @@ public export
 0 Errs : QTypes -> List Type
 Errs c = QErr :: Errs_ c
 
+||| Effectful computation that can fail with one of the
+||| errors defined for this query system.
+public export
+0 QRun : (s : Type) -> (c : QTypes) -> Type -> Type
+QRun s c a = E1 s (Errs c) a
+
 ||| Result of running query `q`.
 public export
 0 QResult : (c : QTypes) -> (q : Query c) -> Type
