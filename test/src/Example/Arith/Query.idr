@@ -86,9 +86,9 @@ parameters (f  : Ref s (ERunner s TestC))
            (sm : SortedMap String Qualified)
            (m  : Module)
 
-  ti : Term -> ByteBounds -> Op -> Term -> E1 s (Errs TestC) (QRes TestC Check)
+  ti : Term -> ByteBounds -> IOp -> Term -> E1 s (Errs TestC) (QRes TestC Check)
 
-  tp : ByteBounds -> Op -> Term -> E1 s (Errs TestC) (QRes TestC Check)
+  tp : ByteBounds -> POp -> Term -> E1 s (Errs TestC) (QRes TestC Check)
 
   typecheckAs : (t : Tpe) -> Term -> E1 s (Errs TestC) (TT t)
 
@@ -110,22 +110,22 @@ parameters (f  : Ref s (ERunner s TestC))
      Just0 p  => pure (rewrite p in tt)
      Nothing0 => throwBounded f m (cast x) (TypeErr tpe tp2)
 
-  op1 : {r : _} -> {tp : _} -> TTOp [tp] r -> Term -> QRun s TestC (t ** TT t)
+  op1 : {r : _} -> TTPOp r -> Term -> QRun s TestC (t ** TT t)
   op1 op x = E1.do
-    x2 <- typecheckAs tp x
-    pure (r ** TTFun op [x2])
+    x2 <- typecheckAs r x
+    pure (r ** TTP op x2)
 
-  op2 : {r : _} -> {tp : _} -> TTOp [tp,tp] r -> (x,y : Term) -> QRun s TestC (t ** TT t)
+  op2 : {r : _} -> TTIOp r r -> (x,y : Term) -> QRun s TestC (t ** TT t)
   op2 op x y = E1.do
-    x2 <- typecheckAs tp x
-    y2 <- typecheckAs tp y
-    pure (r ** TTFun op [x2,y2])
+    x2 <- typecheckAs r x
+    y2 <- typecheckAs r y
+    pure (r ** TTI x2 op y2)
 
-  opAny : {r : _} -> (forall tp . TTOp [tp,tp] r) -> (x,y : Term) -> QRun s TestC (t ** TT t)
+  opAny : {r : _} -> (forall tp . TTIOp tp r) -> (x,y : Term) -> QRun s TestC (t ** TT t)
   opAny op x y = E1.do
     (tp ** x2) <- typecheck x
     y2         <- typecheckAs tp y
-    pure (r ** TTFun op [x2,y2])
+    pure (r ** TTI x2 op y2)
 
   ti x b PLUS  y t = op2 T_PLUS  x y t
   ti x b MINUS y t = op2 T_MINUS x y t
@@ -137,15 +137,9 @@ parameters (f  : Ref s (ERunner s TestC))
   ti x b GTE   y t = opAny T_GTE x y t
   ti x b AND   y t = op2 T_AND   x y t
   ti x b OR    y t = op2 T_OR    x y t
-  -- TODO: Different types for infix and prefix ops
-  --       will make this error redundant
-  ti x b op    y t = throwBounded f m b (NotInfix op) t
 
   tp b NOT   y t = op1 T_NOT y t
   tp b NEG   y t = op1 T_NEG y t
-  -- TODO: Different types for infix and prefix ops
-  --       will make this error redundant
-  tp b op    y t = throwBounded f m b (NotPrefix op) t
 
 inner : Ref s Modules -> PrimRunner s TestC
 inner r f Content x t =

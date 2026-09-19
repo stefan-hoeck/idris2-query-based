@@ -16,8 +16,8 @@ import Text.ILex.State.Streaming
 data STACK : Type where
   Top  : STACK
   Def  : ByteBounded String -> STACK
-  SeqT : STACK -> Skot Syntax BOp -> Syntax -> STACK
-  Seq  : STACK -> Skot Syntax BOp -> STACK
+  SeqT : STACK -> Skot Syntax BPOp BIOp -> Syntax -> STACK
+  Seq  : STACK -> Skot Syntax BPOp BIOp -> STACK
   Open : STACK -> BytePos -> STACK
 
 0 ST : Type -> Type
@@ -33,13 +33,13 @@ parameters {auto sk : ST q}
   onTerm : (ByteBounds -> Syntax) -> F1 q Lexer
   onTerm x = boundsWithStack $ putTerm . x
 
-  onInfix : Op -> Nat -> Assoc -> F1 q Lexer
+  onInfix : IOp -> Nat -> Assoc -> F1 q Lexer
   onInfix o n a =
     bounds >>= \b => withStack $ \case
       SeqT p st t => putStackAs (Seq p $ st:<TInf t (B o b) n a) TERM
       _             => failUnexpected [] ERR
 
-  onPrefix : Op -> Nat -> F1 q Lexer
+  onPrefix : POp -> Nat -> F1 q Lexer
   onPrefix o n = T1.do
     b <- bounds
     withStack $ \case
