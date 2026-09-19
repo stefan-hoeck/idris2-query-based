@@ -5,5 +5,4 @@ ipkg   = "query-based.ipkg"
 test   = "test/test.ipkg"
 
 [custom.all]
-ref1.commit                      = "latest:main"
-quantifiers-extra.commit         = "latest:main"
+ilex.commit                      = "latest:main"
