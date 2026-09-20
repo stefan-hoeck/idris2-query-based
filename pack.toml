@@ -4,5 +4,6 @@ path   = "."
 ipkg   = "query-based.ipkg"
 test   = "test/test.ipkg"
 
-# [custom.all]
-# ilex.commit                      = "latest:main"
+[custom.all]
+ilex-core.commit                 = "latest:main"
+ilex.commit                      = "latest:main"
