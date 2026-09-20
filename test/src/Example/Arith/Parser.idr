@@ -47,9 +47,10 @@ parameters {auto sk : ST q}
       p        => putStackAs (Seq p [<TPre (B o b) n]) TERM
 
   onClose : F1 q Lexer
-  onClose =
+  onClose = T1.do
+    e <- endPos
     withStack $ \case
-      SeqT (Open p _) st x => putTerm (seq st x) p
+      SeqT (Open p s) st x => putTerm (SPar (BB s e) $ seq st x) p
       _                    => failUnexpected [] ERR
 
   onSemi : F1 q Lexer

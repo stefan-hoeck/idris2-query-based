@@ -88,6 +88,7 @@ data Syntax : Type where
   SSeq  : Skot Syntax POp IOp -> Syntax -> Syntax
   SBool : ByteBounds -> Bool -> Syntax
   SNat  : ByteBounds -> Nat -> Syntax
+  SPar  : ByteBounds -> Syntax -> Syntax
 
 %runElab derive "Syntax" [Show,Eq]
 
@@ -152,11 +153,12 @@ Interpolation Error where
 
 public export
 data Term : Type where
-  TI    : ByteBounds -> Term -> ByteBounded IOp -> Term -> Term
-  TP    : ByteBounds -> ByteBounded POp -> Term -> Term
+  TI    : ByteBounds -> Term -> IOp -> Term -> Term
+  TP    : ByteBounds -> POp -> Term -> Term
   TDef  : ByteBounds -> String -> Term
   TBool : ByteBounds -> Bool -> Term
   TNat  : ByteBounds -> Nat -> Term
+  TPar  : ByteBounds -> Term -> Term
 
 %runElab derive "Term" [Show,Eq]
 
@@ -167,12 +169,17 @@ Cast Term ByteBounds where
   cast (TDef b _)   = b
   cast (TBool b _)  = b
   cast (TNat b _)   = b
+  cast (TPar _ x)   = cast x
+
+outer : Term -> ByteBounds
+outer (TPar b _) = b
+outer t          = cast t
 
 ti : Term -> ByteBounded IOp -> Term -> Term
-ti x o y = TI (cast x <+> cast y) x o y
+ti x o y = TI (outer x <+> outer y) x o.val y
 
 tp : ByteBounded POp -> Term -> Term
-tp o y = TP (o.bounds <+> cast y) o y
+tp o y = TP (o.bounds <+> outer y) o.val y
 
 public export
 0 TErr : Type
@@ -195,6 +202,7 @@ desugar (SSeq sk s) = Prelude.do
 desugar (SDef b x)  = Right (TDef b x)
 desugar (SBool b x) = Right (TBool b x)
 desugar (SNat b x)  = Right (TNat b x)
+desugar (SPar b x)  = TPar b <$> desugar x
 
 shuntTok (TPre o n) = Right (TPre o n)
 shuntTok (TInf t o n a) = (\s => TInf s o n a) <$> desugar t
