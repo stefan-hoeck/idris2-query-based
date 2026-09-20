@@ -16,8 +16,8 @@ import Text.ILex.State.Streaming
 data STACK : Type where
   Top  : STACK
   Def  : ByteBounded String -> STACK
-  SeqT : STACK -> Skot Syntax POp IOp -> Syntax -> STACK
-  Seq  : STACK -> Skot Syntax POp IOp -> STACK
+  SeqT : STACK -> Skot Syntax POp IOp Void -> Syntax -> STACK
+  Seq  : STACK -> Skot Syntax POp IOp Void -> STACK
   Open : STACK -> BytePos -> STACK
 
 0 ST : Type -> Type
