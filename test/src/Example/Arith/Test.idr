@@ -41,6 +41,8 @@ examples =
   import Bools
 
   test4 = tr && fl || ~test1;
+
+  test5 = 2 * (true || false);
   """
 
 logVal : F1 World (QResult TestC Eval) -> IO1 ()
@@ -66,6 +68,7 @@ example1 = T1.do
   logVal (run Eval $ Q "Factorials" "fact6")
   logVal (run Eval $ Q "Examples" "test3")
   logVal (run Eval $ Q "Examples" "test4")
+  logVal (run Eval $ Q "Examples" "test5")
 
 export covering
 runArith : IO ()
