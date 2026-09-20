@@ -86,15 +86,15 @@ parameters (f  : Ref s (ERunner s TestC))
            (sm : SortedMap String Qualified)
            (m  : Module)
 
-  ti : Term -> ByteBounds -> IOp -> Term -> E1 s (Errs TestC) (QRes TestC Check)
+  ti : Term -> IOp -> Term -> E1 s (Errs TestC) (QRes TestC Check)
 
-  tp : ByteBounds -> POp -> Term -> E1 s (Errs TestC) (QRes TestC Check)
+  tp : POp -> Term -> E1 s (Errs TestC) (QRes TestC Check)
 
   typecheckAs : (t : Tpe) -> Term -> E1 s (Errs TestC) (TT t)
 
   typecheck : Term -> E1 s (Errs TestC) (t ** TT t)
-  typecheck (TI _ x o y) t = ti x o.bounds o.val y t
-  typecheck (TP _ o y)   t = tp o.bounds o.val y t
+  typecheck (TI _ x o y) t = ti x o y t
+  typecheck (TP _ o y)   t = tp o y t
   typecheck (TDef b s)   t =
     case lookup s sm of
       Nothing => throwBounded f m b (NNotFound s) t
@@ -103,12 +103,13 @@ parameters (f  : Ref s (ERunner s TestC))
         E e t        => E e t
   typecheck (TBool _ b) t = R (_ ** TTBool b) t
   typecheck (TNat _ n)  t = R (_ ** TTInt (cast n)) t
+  typecheck (TPar _ n)  t = typecheck n t
 
   typecheckAs tpe x = E1.do
-   (tp2 ** tt) <- typecheck x
-   case hdecEq tpe tp2 of
-     Just0 p  => pure (rewrite p in tt)
-     Nothing0 => throwBounded f m (cast x) (TypeErr tpe tp2)
+    (tp2 ** tt) <- typecheck x
+    case hdecEq tpe tp2 of
+      Just0 p  => pure (rewrite p in tt)
+      Nothing0 => throwBounded f m (cast x) (TypeErr tpe tp2)
 
   op1 : {r : _} -> TTPOp r -> Term -> QRun s TestC (t ** TT t)
   op1 op x = E1.do
@@ -127,19 +128,19 @@ parameters (f  : Ref s (ERunner s TestC))
     y2         <- typecheckAs tp y
     pure (r ** TTI x2 op y2)
 
-  ti x b PLUS  y t = op2 T_PLUS  x y t
-  ti x b MINUS y t = op2 T_MINUS x y t
-  ti x b TIMES y t = op2 T_TIMES x y t
-  ti x b EQ    y t = opAny T_EQ  x y t
-  ti x b LT    y t = opAny T_LT  x y t
-  ti x b LTE   y t = opAny T_LTE x y t
-  ti x b GT    y t = opAny T_GT  x y t
-  ti x b GTE   y t = opAny T_GTE x y t
-  ti x b AND   y t = op2 T_AND   x y t
-  ti x b OR    y t = op2 T_OR    x y t
+  ti x PLUS  y t = op2 T_PLUS  x y t
+  ti x MINUS y t = op2 T_MINUS x y t
+  ti x TIMES y t = op2 T_TIMES x y t
+  ti x EQ    y t = opAny T_EQ  x y t
+  ti x LT    y t = opAny T_LT  x y t
+  ti x LTE   y t = opAny T_LTE x y t
+  ti x GT    y t = opAny T_GT  x y t
+  ti x GTE   y t = opAny T_GTE x y t
+  ti x AND   y t = op2 T_AND   x y t
+  ti x OR    y t = op2 T_OR    x y t
 
-  tp b NOT   y t = op1 T_NOT y t
-  tp b NEG   y t = op1 T_NEG y t
+  tp NOT   y t = op1 T_NOT y t
+  tp NEG   y t = op1 T_NEG y t
 
 inner : Ref s Modules -> PrimRunner s TestC
 inner r f Content x t =
