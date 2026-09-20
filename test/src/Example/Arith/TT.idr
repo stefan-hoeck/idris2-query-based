@@ -83,24 +83,16 @@ Interpolation POp where
   interpolate NOT   = "~"
 
 public export
-0 BIOp : Type
-BIOp = ByteBounded IOp
-
-public export
-0 BPOp : Type
-BPOp = ByteBounded POp
-
-public export
 data Syntax : Type where
   SDef  : ByteBounds -> String -> Syntax
-  SSeq  : Skot Syntax BPOp BIOp -> Syntax -> Syntax
+  SSeq  : Skot Syntax POp IOp -> Syntax -> Syntax
   SBool : ByteBounds -> Bool -> Syntax
   SNat  : ByteBounds -> Nat -> Syntax
 
 %runElab derive "Syntax" [Show,Eq]
 
 export %inline
-seq : Skot Syntax BPOp BIOp -> Syntax -> Syntax
+seq : Skot Syntax POp IOp -> Syntax -> Syntax
 seq [<] x = x
 seq sp  x = SSeq sp x
 
@@ -143,6 +135,9 @@ data Error : Type where
 
 %runElab derive "Error" [Show,Eq]
 
+export %inline
+Cast (ShuntingErr IOp) Error where cast = EShunt
+
 export
 Interpolation Error where
   interpolate (MNotFound m) = "module not found: \{m}"
@@ -151,17 +146,14 @@ Interpolation Error where
   interpolate (EShunt x)    = interpolate x
   interpolate (TypeErr x y) = "can't unify \{x} (expected) with \{y} (found)"
 
-export %inline
-Cast (ShuntingErr IOp) Error where cast = EShunt
-
 --------------------------------------------------------------------------------
 -- Desugaring
 --------------------------------------------------------------------------------
 
 public export
 data Term : Type where
-  TI    : ByteBounds -> Term -> BIOp -> Term -> Term
-  TP    : ByteBounds -> BPOp -> Term -> Term
+  TI    : ByteBounds -> Term -> ByteBounded IOp -> Term -> Term
+  TP    : ByteBounds -> ByteBounded POp -> Term -> Term
   TDef  : ByteBounds -> String -> Term
   TBool : ByteBounds -> Bool -> Term
   TNat  : ByteBounds -> Nat -> Term
@@ -176,22 +168,19 @@ Cast Term ByteBounds where
   cast (TBool b _)  = b
   cast (TNat b _)   = b
 
-ti : Term -> BIOp -> Term -> Term
+ti : Term -> ByteBounded IOp -> Term -> Term
 ti x o y = TI (cast x <+> cast y) x o y
 
-tp : BPOp -> Term -> Term
+tp : ByteBounded POp -> Term -> Term
 tp o y = TP (o.bounds <+> cast y) o y
 
 public export
 0 TErr : Type
 TErr = BBErr Error
 
-toErr : ShuntingErr BIOp -> TErr
-toErr (AssocNone bo p) = B (Custom $ EShunt $ AssocNone bo.val p) bo.bounds
+shuntTok : Tok Syntax POp IOp -> Either TErr (Tok Term POp IOp)
 
-shuntTok : Tok Syntax BPOp BIOp -> Either TErr (Tok Term BPOp BIOp)
-
-skot : Toks Term BPOp BIOp -> Skot Syntax BPOp BIOp -> Either TErr (Skot Term BPOp BIOp)
+skot : Toks Term POp IOp -> Skot Syntax POp IOp -> Either TErr (Skot Term POp IOp)
 skot is [<]     = Right ([<] <>< is)
 skot is (si:<i) =
  let Right i2 := shuntTok i | Left x => Left x
@@ -202,15 +191,13 @@ desugar : Syntax -> Either TErr Term
 desugar (SSeq sk s) = Prelude.do
   skt <- skot [] sk
   t   <- desugar s
-  mapFst toErr $ shuntingYard ti tp skt t
+  shuntingYard ti tp skt t
 desugar (SDef b x)  = Right (TDef b x)
 desugar (SBool b x) = Right (TBool b x)
 desugar (SNat b x)  = Right (TNat b x)
 
 shuntTok (TPre o n) = Right (TPre o n)
-shuntTok (TInf t o n a) =
- let Right s := desugar t | Left x => Left x
-  in Right (TInf s o n a)
+shuntTok (TInf t o n a) = (\s => TInf s o n a) <$> desugar t
 
 --------------------------------------------------------------------------------
 -- Type Theory
