@@ -85,7 +85,7 @@ Interpolation POp where
 public export
 data Syntax : Type where
   SDef  : ByteBounds -> String -> Syntax
-  SSeq  : Skot Syntax POp IOp -> Syntax -> Syntax
+  SSeq  : Skot Syntax POp IOp Void -> Syntax -> Syntax
   SBool : ByteBounds -> Bool -> Syntax
   SNat  : ByteBounds -> Nat -> Syntax
   SPar  : ByteBounds -> Syntax -> Syntax
@@ -93,7 +93,7 @@ data Syntax : Type where
 %runElab derive "Syntax" [Show,Eq]
 
 export %inline
-seq : Skot Syntax POp IOp -> Syntax -> Syntax
+seq : Skot Syntax POp IOp Void -> Syntax -> Syntax
 seq [<] x = x
 seq sp  x = SSeq sp x
 
@@ -185,9 +185,9 @@ public export
 0 TErr : Type
 TErr = BBErr Error
 
-shuntTok : Tok Syntax POp IOp -> Either TErr (Tok Term POp IOp)
+shuntTok : Tok Syntax POp IOp Void -> Either TErr (Tok Term POp IOp Void)
 
-skot : Toks Term POp IOp -> Skot Syntax POp IOp -> Either TErr (Skot Term POp IOp)
+skot : Toks Term POp IOp Void -> Skot Syntax POp IOp Void -> Either TErr (Skot Term POp IOp Void)
 skot is [<]     = Right ([<] <>< is)
 skot is (si:<i) =
  let Right i2 := shuntTok i | Left x => Left x
@@ -198,7 +198,7 @@ desugar : Syntax -> Either TErr Term
 desugar (SSeq sk s) = Prelude.do
   skt <- skot [] sk
   t   <- desugar s
-  shuntingYard ti tp skt t
+  shuntingYard tp ti (absurd . val) skt t
 desugar (SDef b x)  = Right (TDef b x)
 desugar (SBool b x) = Right (TBool b x)
 desugar (SNat b x)  = Right (TNat b x)
@@ -206,6 +206,7 @@ desugar (SPar b x)  = TPar b <$> desugar x
 
 shuntTok (TPre o n) = Right (TPre o n)
 shuntTok (TInf t o n a) = (\s => TInf s o n a) <$> desugar t
+shuntTok (TPst o n) = absurd o.val
 
 --------------------------------------------------------------------------------
 -- Type Theory
